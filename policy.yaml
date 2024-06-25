@@ -1,0 +1,58 @@
+apiVersion: config.stackrox.io.redhat.com/v1alpha1
+kind: Policy
+metadata:
+  name: klape-test
+spec:
+  policy: |
+    {
+        "name": "klape-test",
+        "description": "yeakjgdlakjg",
+        "rationale": "asldkgn",
+        "remediation": "",
+        "disabled": false,
+        "categories": [
+            "Anomalous Activity",
+            "DevOps Best Practices"
+        ],
+        "lifecycleStages": [
+            "DEPLOY"
+        ],
+        "eventSource": "NOT_APPLICABLE",
+        "exclusions": [],
+        "scope": [
+            {
+                "cluster": "",
+                "namespace": "yes",
+                "label": null
+            }
+        ],
+        "severity": 1,
+        "enforcementActions": [],
+        "notifiers": [],
+        "lastUpdated": "2024-06-25T01:32:36.853737566Z",
+        "SORTName": "",
+        "SORTLifecycleStage": "",
+        "SORTEnforcement": false,
+        "policyVersion": "1.1",
+        "policySections": [
+            {
+                "sectionName": "Policy Section 1",
+                "policyGroups": [
+                    {
+                        "fieldName": "Image Scan Age",
+                        "booleanOperator": "OR",
+                        "negate": false,
+                        "values": [
+                            {
+                                "value": "5"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "mitreAttackVectors": [],
+        "criteriaLocked": false,
+        "mitreVectorsLocked": false,
+        "isDefault": false
+    }

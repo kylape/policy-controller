@@ -1,0 +1,12 @@
+apiVersion: config.stackrox.io.redhat.com/v1alpha1
+kind: Policy
+metadata:
+  labels:
+    app.kubernetes.io/name: policy
+    app.kubernetes.io/instance: policy-sample
+    app.kubernetes.io/part-of: policy-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: policy-controller
+  name: policy-sample
+spec:
+  # TODO(user): Add fields here
