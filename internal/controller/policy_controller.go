@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/protoadapt"
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
@@ -44,6 +45,7 @@ import (
 type PolicyReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	conn   *grpc.ClientConn
 }
 
 //+kubebuilder:rbac:groups=config.stackrox.io.redhat.com,resources=policies,verbs=get;list;watch;create;update;patch;delete
@@ -60,7 +62,8 @@ type PolicyReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
 func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	rlog := log.FromContext(ctx)
+	rlog.Info("Reconciling", "namespace", req.Namespace, "name", req.Name)
 
 	// Get the policy CR
 	policyCR := &configstackroxiov1alpha1.Policy{}
@@ -78,12 +81,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// GET policy from Central
-	defaultIO := roxctlIO.DefaultIO()
-	conn, err := common.GetGRPCConnection(auth.TokenAuth(), logger.NewLogger(defaultIO, printer.DefaultColorPrinter()))
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "could not establish gRPC connection to central")
-	}
-	svc := v1.NewPolicyServiceClient(conn)
+	svc := v1.NewPolicyServiceClient(r.conn)
 	allPolicies, err := svc.ListPolicies(ctx, &v1.RawQuery{})
 
 	if err != nil {
@@ -96,6 +94,9 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			if _, err = svc.PutPolicy(ctx, desiredState); err != nil {
 				return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf("Failed to PUT policy %s", req.Name))
 			}
+			policyCR.Status.Accepted = true
+			policyCR.Status.Message = "Successfully updated policy"
+			r.Client.Status().Update(ctx, policyCR)
 			return ctrl.Result{}, nil
 		}
 	}
@@ -108,7 +109,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, wrappedErr
 	} else {
 		policyCR.Status.Accepted = true
-		policyCR.Status.Message = "Successfully updated policy"
+		policyCR.Status.Message = "Successfully created policy"
 		r.Client.Status().Update(ctx, policyCR)
 	}
 
@@ -119,6 +120,11 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	conn, err := common.GetGRPCConnection(auth.TokenAuth(), logger.NewLogger(roxctlIO.DefaultIO(), printer.DefaultColorPrinter()))
+	if err != nil {
+		return errors.Wrap(err, "could not establish gRPC connection to Central")
+	}
+	r.conn = conn
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&configstackroxiov1alpha1.Policy{}).
 		Complete(r)
